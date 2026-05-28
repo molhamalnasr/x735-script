@@ -1,4 +1,4 @@
-x735-script (4.0.0) UNRELEASED; urgency=medium
+x735-script (4.0.1) UNRELEASED; urgency=medium
 
   * Initial Release. [v3.0.0]
   * edit README [v3.0.1]
@@ -10,5 +10,7 @@ x735-script (4.0.0) UNRELEASED; urgency=medium
     enhancements [v4.0.0]
   * docs: update installation instructions to download deb packages into
     /tmp for APT compatibility [v4.0.0]
+  * fix: resolve config parser zero-value override bug in default
+    mapping [v4.0.1]
 
- -- Molham Al Nasr <dr.molham93@gmail.com>  Thu, 28 May 2026 11:40:54 +0000
+ -- Molham Al Nasr <dr.molham93@gmail.com>  Thu, 28 May 2026 11:55:57 +0000
