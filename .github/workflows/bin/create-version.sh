@@ -8,13 +8,12 @@ readonly PACKAGE_VERSION="$3"
 declare -a ARCH_LIST=("arm64" "armhf")
 
 # Create the "versions" directory if it doesn't exist
-mkdir -p ${PACKAGE_PATH}/versions
+mkdir -p "${PACKAGE_PATH}/versions"
 
 for arch_type in "${ARCH_LIST[@]}"; do
-    # first change the Architecture in the DEBIAN/control file
+    # First change the Architecture in the DEBIAN/control file
     sed -i "/^Architecture:.*/ c Architecture: ${arch_type}" "${CONTROL_PATH}"
 
-    # Run docker image and build the package in the mounted directory
-    docker run --rm -v "$PACKAGE_PATH":/pkg multiarch/debian-debootstrap:"${arch_type}"-bullseye \
-    dpkg-deb --build /pkg/x735-script-pkg "/pkg/versions/x735-script_${PACKAGE_VERSION}_${arch_type}.deb"
+    # Build the package natively on the runner
+    dpkg-deb --build "${PACKAGE_PATH}/x735-script-pkg" "${PACKAGE_PATH}/versions/x735-script_${PACKAGE_VERSION}_${arch_type}.deb"
 done

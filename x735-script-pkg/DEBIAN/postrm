@@ -1,8 +1,18 @@
 #!/bin/bash
 
-readonly CONFIG_FILE="/boot/config.txt"
+set -e
 
-sudo sed -i '/^\[all\]$/,/^\[.*\]$/ s/dtoverlay=pwm-2chan,pin2=13,func2=4$//' "${CONFIG_FILE}"
+# Dynamically determine the boot config file path
+if [ -f "/boot/firmware/config.txt" ]; then
+    readonly CONFIG_FILE="/boot/firmware/config.txt"
+else
+    readonly CONFIG_FILE="/boot/config.txt"
+fi
+
+if [ -f "${CONFIG_FILE}" ]; then
+    # Remove the dtoverlay entry from the configuration file
+    sed -i '/^\[all\]$/,/^\[.*\]$/ s/dtoverlay=pwm-2chan,pin2=13,func2=4$//' "${CONFIG_FILE}"
+fi
 
 echo -e "\033[31mPlease restart the device by running the following command:\033[0m"
 echo -e "\t'sudo reboot'"

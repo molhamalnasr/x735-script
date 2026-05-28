@@ -3,9 +3,15 @@
 set -e
 
 readonly LINE_TO_ADD="dtoverlay=pwm-2chan,pin2=13,func2=4"
-readonly CONFIG_FILE="/boot/firmware/config.txt"
-readonly BACKUP_FILE="${CONFIG_FILE}.backup"
 
+# Dynamically determine the boot config file path
+if [ -f "/boot/firmware/config.txt" ]; then
+    readonly CONFIG_FILE="/boot/firmware/config.txt"
+else
+    readonly CONFIG_FILE="/boot/config.txt"
+fi
+
+readonly BACKUP_FILE="${CONFIG_FILE}.backup"
 readonly PERMISSION_DENIED="151"
 readonly FILE_NOT_EXIST="152"
 
@@ -64,7 +70,7 @@ fi
 echo "Adding the line '${LINE_TO_ADD}' for the first time in '${CONFIG_FILE}'"
 sed -i "${last_directive_line_number} a ${LINE_TO_ADD}" "${CONFIG_FILE}"
 
-# granting permession for all executables.
+# granting permission for all executables.
 chmod +x /usr/bin/x735off
 chmod +x /usr/lib/x735-script/scripts/*.sh
 

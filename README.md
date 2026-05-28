@@ -1,5 +1,5 @@
 # Overview:
-The "x735-script" is a Bash script designed to manage the x735 Power Management and Cooling Expansion Board (HAT) for Raspberry Pi 3 and 4. This script enables the user to control various features of the x735 board, including restarting or shutting down the Raspberry Pi using a physical button on the x735 board. Additionally, it uses the PWM pin to control the speed of the fan based on the CPU temperature, providing efficient cooling.
+The "x735-script" is a Bash script designed to manage the x735 Power Management and Cooling Expansion Board (HAT) for Raspberry Pi 3 and 4. This script supports both **Debian 12 (Bookworm)** and **Debian 13 (Trixie)**. It enables the user to control various features of the x735 board, including restarting or shutting down the Raspberry Pi using a physical button on the x735 board. Additionally, it uses the PWM pin to control the speed of the fan based on the CPU temperature, providing efficient cooling.
 
 ## Features:
 Control over GPIO pins to activate the restart and shutdown button on the x735 board.

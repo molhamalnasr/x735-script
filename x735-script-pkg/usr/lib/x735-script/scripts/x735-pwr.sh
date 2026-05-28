@@ -1,14 +1,21 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
 readonly SHUTDOWN=5
 readonly BOOT=12
-readonly GPIO_PATH="/sys/class/gpio"
+readonly GPIO_CHIP=0
 readonly REBOOT_PULSE_MINIMUM="200"
 readonly REBOOT_PULSE_MAXIMUM="600"
-readonly STATE_EXPORT="export"
-readonly STATE_UNEXPORT="unexport"
+
+# Source the GPIO helper script
+readonly HELPER_PATH="/usr/lib/x735-script/scripts/gpio-helper.sh"
+if [ -f "$HELPER_PATH" ]; then
+    source "$HELPER_PATH"
+else
+    # Fallback if running from source folder during development/testing
+    source "$(dirname "${BASH_SOURCE[0]}")/gpio-helper.sh"
+fi
 
 terminate() {
   local -r msg=$1
@@ -17,51 +24,14 @@ terminate() {
   exit "${err_code}"
 }
 
-# Export / unexport a GPIO or modify its files' values
-manage_gpio() {
-  local gpio_nr="$1"
-  local state="$2"
-
-  # If function has 3 arguments, modify GPIO files' values
-  if [[ "${#}" -eq "3" ]]; then
-    local file="$2"
-    local value="$3"
-    echo "${value}" > "${GPIO_PATH}/gpio${gpio_nr}/${file}"
-    return 0
-  fi
-
-  echo "${gpio_nr}" > "${GPIO_PATH}/${state}"
-}
-
-get_gpio_value() {
-  local -r gpio_nr="$1"
-  echo "$(<"${GPIO_PATH}/gpio${gpio_nr}/value")"
-}
-
 gpio_cleanup() {
-  if [ -d "${GPIO_PATH}/gpio${SHUTDOWN}" ]; then
-    manage_gpio "${SHUTDOWN}" "${STATE_UNEXPORT}"
-  fi
-
-  if [ -d "${GPIO_PATH}/gpio${BOOT}" ]; then
-    manage_gpio "${BOOT}" "${STATE_UNEXPORT}"
-  fi
-
+  gpio_cleanup_all
   terminate "Unexpected exit..."
 }
 
-init_gpio() {
-  if [ ! -d "${GPIO_PATH}/gpio${SHUTDOWN}" ]; then
-    manage_gpio "${SHUTDOWN}" "${STATE_EXPORT}"
-  fi
-
-  if [ ! -d "${GPIO_PATH}/gpio${BOOT}" ]; then
-    manage_gpio "${BOOT}" "${STATE_EXPORT}"
-  fi
-
-  manage_gpio "${SHUTDOWN}" "direction" "in"
-  manage_gpio "${BOOT}" "direction" "out"
-  manage_gpio "${BOOT}" "value" "1"
+init_pins() {
+  gpio_init_input "$GPIO_CHIP" "$SHUTDOWN"
+  gpio_init_output "$GPIO_CHIP" "$BOOT" 1
 }
 
 echo "The x735-script is listening to the shutdown button clicks..."
@@ -71,10 +41,10 @@ __main__() {
   # Handle exit and interrupt signals to clean up GPIO
   trap gpio_cleanup EXIT SIGINT SIGTERM
 
-  init_gpio
+  init_pins
 
   while true; do
-    local shutdown_signal="$(get_gpio_value ${SHUTDOWN})"
+    local shutdown_signal="$(gpio_get_value "$GPIO_CHIP" "$SHUTDOWN")"
     if [ "$shutdown_signal" = "0" ]; then
       sleep 0.2
     else
@@ -85,14 +55,14 @@ __main__() {
         local elapsed_time=$((current_time - pulse_start))
         if [ "$elapsed_time" -gt "$REBOOT_PULSE_MAXIMUM" ]; then
           echo "Your device is shutting down (GPIO $SHUTDOWN), halting RPi ..."
-          sudo poweroff
+          poweroff
           exit
         fi
-        shutdown_signal="$(get_gpio_value ${SHUTDOWN})"
+        shutdown_signal="$(gpio_get_value "$GPIO_CHIP" "$SHUTDOWN")"
       done
       if [ "$elapsed_time" -gt "$REBOOT_PULSE_MINIMUM" ]; then
         echo "Your device is rebooting (GPIO $SHUTDOWN), recycling RPi ..."
-        sudo reboot
+        reboot
         exit
       fi
     fi

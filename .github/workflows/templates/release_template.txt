@@ -17,7 +17,7 @@ wget https://github.com/##REPO##/releases/download/v##TAG_NAME##/x735-script_##T
 For ARMHF architecture, use:
 
 ```bash
-wget https://github.com/##REPO##/releases/download/v##TAG_NAME##/x735-script_##TAG_NAME##_armhf_.deb
+wget https://github.com/##REPO##/releases/download/v##TAG_NAME##/x735-script_##TAG_NAME##_armhf.deb
 ```
 
 ### 2. Install the Package
@@ -33,7 +33,7 @@ sudo dpkg -i x735-script_##TAG_NAME##_arm64.deb
 For ARMHF architecture, use:
 
 ```bash
-sudo dpkg -i x735-script_##TAG_NAME##_armhf_.deb
+sudo dpkg -i x735-script_##TAG_NAME##_armhf.deb
 ```
 
 ### 3. Reboot Your System

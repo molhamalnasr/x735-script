@@ -1,18 +1,23 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
 SLEEP=${1:-4}
 
 readonly BUTTON=20
-readonly GPIO_PATH="/sys/class/gpio"
-readonly BUTTON_PATH="${GPIO_PATH}/gpio${BUTTON}"
+readonly GPIO_CHIP=0
 
 readonly PERMISSION_DENIED="151"
 readonly INVALID_CLI_ARG_TYPE="153"
 
-readonly STATE_EXPORT="export"
-readonly STATE_UNEXPORT="unexport"
+# Source the GPIO helper script
+readonly HELPER_PATH="/usr/lib/x735-script/scripts/gpio-helper.sh"
+if [ -f "$HELPER_PATH" ]; then
+    source "$HELPER_PATH"
+else
+    # Fallback if running from source folder during development/testing
+    source "$(dirname "${BASH_SOURCE[0]}")/../lib/x735-script/scripts/gpio-helper.sh"
+fi
 
 terminate() {
     local -r msg=$1
@@ -30,40 +35,24 @@ if ! [[ $SLEEP =~ ^[0-9\.]+$ ]] ; then
    terminate "error: sleep time not a number" "${INVALID_CLI_ARG_TYPE}"
 fi
 
-# export / unexport a GPIO
-un_export_gpio() {
-   local -r state="$1"
-
-   echo "${BUTTON}" > "${GPIO_PATH}/${state}"
-}
-
-modify_gpio_val() {
-   local -r file="$1"
-   local -r value="$2"
-
-   echo "${value}" > "${BUTTON_PATH}/${file}"
-}
-
 gpio_cleanup() {
-   un_export_gpio "${STATE_UNEXPORT}"
+   gpio_cleanup_pin "$BUTTON"
    terminate "unexpected error..."
 }
 
 # Main method
-function __main__ {
-  un_export_gpio "${STATE_EXPORT}"
+__main__() {
+  gpio_init_output "$GPIO_CHIP" "$BUTTON" 1
   
   # Handle exit and interrupt signals to cleanup GPIO
   trap gpio_cleanup EXIT SIGINT SIGTERM
 
-  modify_gpio_val "direction" "out"
-  modify_gpio_val "value" "1"
-
-  # Broadcast the sutdown message to all tty sessions.
+  # Broadcast the shutdown message to all tty sessions.
   printf "Your device will shut down in %d seconds...\n" "$SLEEP" | wall
-  /bin/sleep $SLEEP
+  sleep "$SLEEP"
 
-  modify_gpio_val "value" "0"
+  gpio_set_value "$GPIO_CHIP" "$BUTTON" 0
+  gpio_cleanup_pin "$BUTTON"
 }
 
 __main__
