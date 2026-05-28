@@ -1,8 +1,10 @@
-x735-script (3.0.1) UNRELEASED; urgency=medium
+x735-script (3.1.0) UNRELEASED; urgency=medium
 
   * Initial Release. [v3.0.0]
   * edit README [v3.0.1]
   * update checkout repo and the changelog_msg [v3.0.1]
   * update action deps versions [v3.0.1]
+  * refactor: update workflow to use pinned actions and replace
+    deprecated release action with softprops/action-gh-release [v3.1.0]
 
- -- Molham Al Nasr <dr.molham93@gmail.com>  Sat, 04 Jan 2025 11:23:36 +0000
+ -- Molham Al Nasr <dr.molham93@gmail.com>  Thu, 28 May 2026 10:03:14 +0000
