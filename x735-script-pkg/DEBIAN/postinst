@@ -70,9 +70,8 @@ fi
 echo "Adding the line '${LINE_TO_ADD}' for the first time in '${CONFIG_FILE}'"
 sed -i "${last_directive_line_number} a ${LINE_TO_ADD}" "${CONFIG_FILE}"
 
-# granting permission for all executables.
-chmod +x /usr/bin/x735off
-chmod +x /usr/lib/x735-script/scripts/*.sh
+# Granting permission for the new daemon executable
+chmod +x /usr/bin/x735-daemon
 
 # Enable and start the services after package installation
 echo "enabling and starting the services..."

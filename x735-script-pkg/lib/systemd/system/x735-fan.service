@@ -3,7 +3,7 @@ Description=Daemon to monitor and control fan speed
 
 [Service]
 Type=simple
-ExecStart=/usr/lib/x735-script/scripts/x735-fan.sh
+ExecStart=/usr/bin/x735-daemon fan
 Restart=always
 
 [Install]

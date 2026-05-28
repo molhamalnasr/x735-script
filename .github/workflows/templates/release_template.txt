@@ -27,14 +27,17 @@ Once the package is downloaded, install it using the following command:
 For ARM64 architecture, run:
 
 ```bash
-sudo dpkg -i x735-script_##TAG_NAME##_arm64.deb
+sudo apt install ./x735-script_##TAG_NAME##_arm64.deb
 ```
 
 For ARMHF architecture, use:
 
 ```bash
-sudo dpkg -i x735-script_##TAG_NAME##_armhf.deb
+sudo apt install ./x735-script_##TAG_NAME##_armhf.deb
 ```
+
+> [!TIP]
+> Using `apt install` (instead of `dpkg -i`) is recommended as it automatically resolves and installs package dependencies (such as `gpiod`).
 
 ### 3. Reboot Your System
 
