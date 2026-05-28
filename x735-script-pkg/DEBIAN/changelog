@@ -8,5 +8,7 @@ x735-script (4.0.0) UNRELEASED; urgency=medium
     deprecated release action with softprops/action-gh-release [v3.1.0]
   * feat: refactor x735-script to Go with OOP/DDD design and robustness
     enhancements [v4.0.0]
+  * docs: update installation instructions to download deb packages into
+    /tmp for APT compatibility [v4.0.0]
 
- -- Molham Al Nasr <dr.molham93@gmail.com>  Thu, 28 May 2026 11:19:31 +0000
+ -- Molham Al Nasr <dr.molham93@gmail.com>  Thu, 28 May 2026 11:40:54 +0000
