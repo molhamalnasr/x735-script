@@ -57,50 +57,40 @@ func NewDefaultConfig() *Config {
 }
 
 // LoadConfig loads the default config, reads user changes from /etc/x735/x735.conf,
-// validates each parameter, and falls back to defaults for invalid keys.
+// validates each parameter inline, and falls back to defaults for invalid/missing keys.
 func LoadConfig(defaultPath, userPath string) *Config {
-	// 1. Load the defaults from the new default config file
-	defaultCfg := loadRawConfig(defaultPath, NewDefaultConfig())
+	// Initialize defaults
+	cfg := NewDefaultConfig()
+
+	// Load and validate from defaults file
+	cfg = loadAndValidateConfig(defaultPath, cfg, false)
 
 	// Force hardware pins to remain hardcoded
-	defaultCfg.ShutdownPin = FixedShutdownPin
-	defaultCfg.BootPin = FixedBootPin
-	defaultCfg.ButtonPin = FixedButtonPin
-	defaultCfg.GpioChip = FixedGpioChip
+	cfg.ShutdownPin = FixedShutdownPin
+	cfg.BootPin = FixedBootPin
+	cfg.ButtonPin = FixedButtonPin
+	cfg.GpioChip = FixedGpioChip
 
-	// If no user config file exists, return the default config directly
-	if _, err := os.Stat(userPath); os.IsNotExist(err) {
-		return defaultCfg
+	// Load and validate from user file (if it exists)
+	if _, err := os.Stat(userPath); err == nil {
+		cfg = loadAndValidateConfig(userPath, cfg, true)
 	}
 
-	// 2. Load user config raw entries
-	userCfg := loadRawConfig(userPath, nil)
-	if userCfg == nil {
-		return defaultCfg
-	}
-
-	// 3. Validate user values and merge them into defaultCfg
-	mergeAndValidate(defaultCfg, userCfg)
-
-	return defaultCfg
+	return cfg
 }
 
-// loadRawConfig parses a configuration file. If startWith is provided, it uses it as a template.
-func loadRawConfig(path string, template *Config) *Config {
-	var cfg *Config
-	if template != nil {
-		// Clone template values
-		clone := *template
-		cfg = &clone
-	} else {
-		cfg = &Config{}
-	}
-
+func loadAndValidateConfig(path string, cfg *Config, isUser bool) *Config {
 	file, err := os.Open(path)
 	if err != nil {
 		return cfg
 	}
 	defer file.Close()
+
+	// Temporary holders for fan curve
+	var tempThresholds []int
+	var tempDutyCycles []int
+	hasThresholds := false
+	hasDutyCycles := false
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -121,15 +111,27 @@ func loadRawConfig(path string, template *Config) *Config {
 		switch key {
 		case "PWM_CHANNEL":
 			if parsed, err := strconv.Atoi(val); err == nil {
-				cfg.PwmChannel = parsed
+				if parsed == 0 || parsed == 1 {
+					cfg.PwmChannel = parsed
+				} else if isUser {
+					fmt.Fprintf(os.Stderr, "Warning: Invalid PWM_CHANNEL (%d) in user config. Retaining default (%d).\n", parsed, cfg.PwmChannel)
+				}
 			}
 		case "PWM_HERTZ":
 			if parsed, err := strconv.Atoi(val); err == nil {
-				cfg.PwmHertz = parsed
+				if parsed > 0 {
+					cfg.PwmHertz = parsed
+				} else if isUser {
+					fmt.Fprintf(os.Stderr, "Warning: Invalid PWM_HERTZ (%d) in user config. Retaining default (%d).\n", parsed, cfg.PwmHertz)
+				}
 			}
 		case "SLEEP_INTERVAL":
 			if parsed, err := strconv.Atoi(val); err == nil {
-				cfg.SleepInterval = parsed
+				if parsed > 0 {
+					cfg.SleepInterval = parsed
+				} else if isUser {
+					fmt.Fprintf(os.Stderr, "Warning: Invalid SLEEP_INTERVAL (%d) in user config. Retaining default (%d).\n", parsed, cfg.SleepInterval)
+				}
 			}
 		case "SHOW_DEBUG":
 			cfg.ShowDebug = strings.ToLower(val) == "true" || val == "1"
@@ -137,74 +139,46 @@ func loadRawConfig(path string, template *Config) *Config {
 			cfg.EnableMetrics = strings.ToLower(val) == "true" || val == "1"
 		case "REBOOT_PULSE_MIN":
 			if parsed, err := strconv.Atoi(val); err == nil {
-				cfg.RebootPulseMin = parsed
+				if parsed > 0 {
+					cfg.RebootPulseMin = parsed
+				} else if isUser {
+					fmt.Fprintf(os.Stderr, "Warning: Invalid REBOOT_PULSE_MIN (%d) in user config. Retaining default (%d).\n", parsed, cfg.RebootPulseMin)
+				}
 			}
 		case "REBOOT_PULSE_MAX":
 			if parsed, err := strconv.Atoi(val); err == nil {
-				cfg.RebootPulseMax = parsed
+				if parsed > cfg.RebootPulseMin {
+					cfg.RebootPulseMax = parsed
+				} else if isUser {
+					fmt.Fprintf(os.Stderr, "Warning: REBOOT_PULSE_MAX (%d) must be greater than REBOOT_PULSE_MIN (%d). Retaining default (%d).\n", parsed, cfg.RebootPulseMin, cfg.RebootPulseMax)
+				}
 			}
 		case "FAN_THRESHOLDS":
-			cfg.FanThresholds = parseSlice(val)
+			tempThresholds = parseSlice(val)
+			hasThresholds = true
 		case "FAN_DUTY_CYCLES":
-			cfg.FanDutyCycles = parseSlice(val)
+			tempDutyCycles = parseSlice(val)
+			hasDutyCycles = true
 		}
 	}
+
+	// Validate and apply fan curve if either was parsed
+	if hasThresholds || hasDutyCycles {
+		if !hasThresholds || !hasDutyCycles {
+			if isUser {
+				fmt.Fprintf(os.Stderr, "Warning: Both FAN_THRESHOLDS and FAN_DUTY_CYCLES must be defined to override default curve.\n")
+			}
+		} else {
+			if len(tempThresholds) == len(tempDutyCycles) && len(tempThresholds) > 0 && isSorted(tempThresholds) && allBetween0And100(tempDutyCycles) {
+				cfg.FanThresholds = tempThresholds
+				cfg.FanDutyCycles = tempDutyCycles
+			} else if isUser {
+				fmt.Fprintf(os.Stderr, "Warning: Invalid user fan curve configuration. Retaining default fan curve.\n")
+			}
+		}
+	}
+
 	return cfg
-}
-
-// mergeAndValidate merges user config into defaults, resetting invalid fields to defaults.
-func mergeAndValidate(def *Config, user *Config) {
-	// Validate PWM Channel
-	if user.PwmChannel == 0 || user.PwmChannel == 1 {
-		def.PwmChannel = user.PwmChannel
-	} else if user.PwmChannel != 0 { // user.PwmChannel is initialized (not zero-value fallback)
-		fmt.Fprintf(os.Stderr, "Warning: Invalid PWM_CHANNEL (%d) in user config. Falling back to default (%d).\n", user.PwmChannel, def.PwmChannel)
-	}
-
-	// Validate PWM Hertz
-	if user.PwmHertz > 0 {
-		def.PwmHertz = user.PwmHertz
-	} else if user.PwmHertz != 0 {
-		fmt.Fprintf(os.Stderr, "Warning: Invalid PWM_HERTZ (%d). Falling back to default (%d).\n", user.PwmHertz, def.PwmHertz)
-	}
-
-	// Validate Sleep Interval
-	if user.SleepInterval > 0 {
-		def.SleepInterval = user.SleepInterval
-	} else if user.SleepInterval != 0 {
-		fmt.Fprintf(os.Stderr, "Warning: Invalid SLEEP_INTERVAL (%d). Falling back to default (%d).\n", user.SleepInterval, def.SleepInterval)
-	}
-
-	// Validate Reboot Pulse Min
-	if user.RebootPulseMin > 0 {
-		def.RebootPulseMin = user.RebootPulseMin
-	} else if user.RebootPulseMin != 0 {
-		fmt.Fprintf(os.Stderr, "Warning: Invalid REBOOT_PULSE_MIN (%d). Falling back to default (%d).\n", user.RebootPulseMin, def.RebootPulseMin)
-	}
-
-	// Validate Reboot Pulse Max
-	if user.RebootPulseMax > 0 {
-		// Reboot pulse max must be greater than reboot pulse min
-		if user.RebootPulseMax > def.RebootPulseMin {
-			def.RebootPulseMax = user.RebootPulseMax
-		} else {
-			fmt.Fprintf(os.Stderr, "Warning: REBOOT_PULSE_MAX (%d) must be greater than REBOOT_PULSE_MIN (%d). Falling back to default (%d).\n", user.RebootPulseMax, def.RebootPulseMin, def.RebootPulseMax)
-		}
-	}
-
-	// Booleans (always valid)
-	def.ShowDebug = user.ShowDebug
-	def.EnableMetrics = user.EnableMetrics
-
-	// Validate Fan curve
-	if len(user.FanThresholds) > 0 || len(user.FanDutyCycles) > 0 {
-		if len(user.FanThresholds) == len(user.FanDutyCycles) && len(user.FanThresholds) > 0 && isSorted(user.FanThresholds) && allBetween0And100(user.FanDutyCycles) {
-			def.FanThresholds = user.FanThresholds
-			def.FanDutyCycles = user.FanDutyCycles
-		} else {
-			fmt.Fprintf(os.Stderr, "Warning: Invalid user fan curve configuration. Falling back to default thresholds %v and duty cycles %v.\n", def.FanThresholds, def.FanDutyCycles)
-		}
-	}
 }
 
 func isSorted(slice []int) bool {
