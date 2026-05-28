@@ -18,6 +18,9 @@
 # Expose a Prometheus metrics endpoint on http://localhost:9735/metrics
 # ENABLE_METRICS=false
 
+# Port on which to expose the Prometheus metrics HTTP server (default 9735)
+# METRICS_PORT=9735
+
 # Minimum duration of press to trigger a reboot (in milliseconds, default 200)
 # REBOOT_PULSE_MIN=200
 

@@ -23,6 +23,7 @@ type Config struct {
 	SleepInterval  int
 	ShowDebug      bool
 	EnableMetrics  bool
+	MetricsPort    int
 	RebootPulseMin int // in milliseconds
 	RebootPulseMax int // in milliseconds
 	FanThresholds  []int
@@ -43,6 +44,7 @@ func NewDefaultConfig() *Config {
 		SleepInterval:  5,
 		ShowDebug:      false,
 		EnableMetrics:  false,
+		MetricsPort:    9735,
 		RebootPulseMin: 200,
 		RebootPulseMax: 600,
 		FanThresholds:  []int{25, 40, 50, 60, 70, 75},
@@ -95,7 +97,17 @@ func loadAndValidateConfig(path string, cfg *Config, isUser bool) *Config {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
+		
+		// Strip inline comments
+		if idx := strings.Index(line, "#"); idx != -1 {
+			line = line[:idx]
+		}
+		if idx := strings.Index(line, ";"); idx != -1 {
+			line = line[:idx]
+		}
+		line = strings.TrimSpace(line)
+
+		if line == "" {
 			continue
 		}
 
@@ -137,6 +149,14 @@ func loadAndValidateConfig(path string, cfg *Config, isUser bool) *Config {
 			cfg.ShowDebug = strings.ToLower(val) == "true" || val == "1"
 		case "ENABLE_METRICS":
 			cfg.EnableMetrics = strings.ToLower(val) == "true" || val == "1"
+		case "METRICS_PORT":
+			if parsed, err := strconv.Atoi(val); err == nil {
+				if parsed > 0 && parsed <= 65535 {
+					cfg.MetricsPort = parsed
+				} else if isUser {
+					fmt.Fprintf(os.Stderr, "Warning: Invalid METRICS_PORT (%d) in user config. Retaining default (%d).\n", parsed, cfg.MetricsPort)
+				}
+			}
 		case "REBOOT_PULSE_MIN":
 			if parsed, err := strconv.Atoi(val); err == nil {
 				if parsed > 0 {

@@ -28,6 +28,7 @@ To protect your Raspberry Pi and the X735 board from accidental hardware damage,
 The config loader validates each user override in `/etc/x735/x735.conf` on startup:
 *   `PWM_CHANNEL` must be `0` or `1`.
 *   `PWM_HERTZ` and `SLEEP_INTERVAL` must be greater than `0`.
+*   `METRICS_PORT` must be between `1` and `65535`.
 *   `REBOOT_PULSE_MAX` must be greater than `REBOOT_PULSE_MIN`.
 *   `FAN_THRESHOLDS` and `FAN_DUTY_CYCLES` must have matching lengths, contain valid values, and thresholds must be in ascending order.
 
@@ -36,10 +37,10 @@ If any parameter is invalid, a warning is printed to standard error, and the dae
 ---
 
 ## Prometheus Metrics
-If you set `ENABLE_METRICS=true` in `/etc/x735/x735.conf`, the daemon starts an HTTP metrics server on port `:9735`.
+If you set `ENABLE_METRICS=true` in `/etc/x735/x735.conf`, the daemon starts an HTTP metrics server on the port specified by `METRICS_PORT` (defaulting to `:9735`).
 
 You can scrape this endpoint at:
-`http://<your-pi-ip>:9735/metrics`
+`http://<your-pi-ip>:<metrics-port>/metrics`
 
 ### Exposed Metrics
 *   `x735_cpu_temperature_celsius` (Gauge): Current CPU temperature.

@@ -107,7 +107,7 @@ func runFan(cfg *config.Config) {
 
 	// Start Prometheus metrics server if enabled
 	if cfg.EnableMetrics {
-		startMetricsServer()
+		startMetricsServer(cfg.MetricsPort)
 	}
 
 	// Handle signals for cleanup
@@ -293,7 +293,7 @@ func runOff(cfg *config.Config) {
 	_ = gpioMgr.SetValue(cfg.ButtonPin, 0)
 }
 
-func startMetricsServer() {
+func startMetricsServer(port int) {
 	http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
 		metricsMu.RLock()
 		defer metricsMu.RUnlock()
@@ -309,8 +309,8 @@ func startMetricsServer() {
 	})
 
 	go func() {
-		fmt.Println("Starting Prometheus metrics server on :9735/metrics...")
-		if err := http.ListenAndServe(":9735", nil); err != nil {
+		fmt.Printf("Starting Prometheus metrics server on :%d/metrics...\n", port)
+		if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
 			fmt.Fprintf(os.Stderr, "Error starting metrics server: %v\n", err)
 		}
 	}()
