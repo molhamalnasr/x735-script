@@ -8,15 +8,19 @@ To get started, follow these simple steps to install the script on your Raspberr
 
 ### 1. Download the Package
 
+It is recommended to download the package into a publicly readable folder (like `/tmp`) so that the APT sandboxed installer (`_apt` user) can access it without permissions warnings.
+
 For ARM64 architecture, open your terminal and run:
 
 ```bash
+cd /tmp
 wget https://github.com/##REPO##/releases/download/v##TAG_NAME##/x735-script_##TAG_NAME##_arm64.deb
 ```
 
 For ARMHF architecture, use:
 
 ```bash
+cd /tmp
 wget https://github.com/##REPO##/releases/download/v##TAG_NAME##/x735-script_##TAG_NAME##_armhf.deb
 ```
 
