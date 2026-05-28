@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*'
 
+
+permissions:
+  contents: write
+
 env:
   WORKFLOW_PATH: ${GITHUB_WORKSPACE}/.github/workflows
   PACKAGE_DEBIAN: ${GITHUB_WORKSPACE}/x735-script-pkg/DEBIAN
@@ -17,10 +21,10 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: main
-          token: ${{ secrets.CREATE_RELEASE_TOKEN }}
+          token: ${{ secrets.CREATE_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Install Dependencies
         run: |
@@ -71,7 +75,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ needs.update_repo.outputs.update_repo_sha }}  # Use the update_repo_sha output from the previous job
 
@@ -90,33 +94,35 @@ jobs:
           /bin/bash ${{ env.WORKFLOW_PATH }}/bin/create-version.sh "${GITHUB_WORKSPACE}" "${{ env.PACKAGE_DEBIAN }}/control" "${{ needs.update_repo.outputs.tag_name }}"
 
       - name: Save Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: x735-script-artifacts
           path: versions/x735-script_*.deb
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.CREATE_RELEASE_TOKEN }}
+      - name: Generate Release Body
+        run: |
+          TAG_NAME="${{ needs.update_repo.outputs.tag_name }}"
+          RELEASE_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          REPO="${{ github.repository }}"
+          MSG="${{ needs.update_repo.outputs.changelog_msg }}"
+          awk -v tag_name="${TAG_NAME}" -v release_date="${RELEASE_DATE}" -v repo="${REPO}" -v msg="${MSG}" '
+              {
+              gsub(/##TAG_NAME##/, tag_name);
+              gsub(/##RELEASE_DATE##/, release_date);
+              gsub(/##REPO##/, repo);
+              gsub(/##MSG##/, msg);
+              print;
+              }
+          ' "${{ env.WORKFLOW_PATH }}/templates/release_template.txt" > "${GITHUB_WORKSPACE}/release_body.md"
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           tag_name: ${{ github.ref }}
-          release_name: Release Version ${{ needs.update_repo.outputs.tag_name }}
+          name: Release Version ${{ needs.update_repo.outputs.tag_name }}
+          body_path: ${{ github.workspace }}/release_body.md
           draft: false
           prerelease: false
-      
-      - name: Upload Artifacts to Release and update Release Note
-        run: |
-          # Update Release Note
-          /bin/bash ${{ env.WORKFLOW_PATH }}/bin/create_release_note.sh \
-            "${{ env.WORKFLOW_PATH }}/templates/release_template.txt" \
-            "${{ github.repository }}" \
-            "${{ secrets.CREATE_RELEASE_TOKEN }}" \
-            "${{ steps.create_release.outputs.id }}" \
-            "${{ needs.update_repo.outputs.changelog_msg }}"
-
-          # Add a loop to upload each artifact
-          for artifact in ${GITHUB_WORKSPACE}/versions/x735-script_*.deb; do
-            /bin/bash ${{ env.WORKFLOW_PATH }}/bin/upload-artifacts.sh "$artifact" "${{ steps.create_release.outputs.upload_url }}" "${{ secrets.CREATE_RELEASE_TOKEN }}"
-          done
+          files: |
+            versions/x735-script_*.deb
+          token: ${{ secrets.CREATE_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
